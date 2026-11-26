@@ -45,7 +45,9 @@ module.exports = async function handler(request, response) {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return sendJson(response, 200, demoPayload());
+    return sendJson(response, 200, demoPayload(
+      "OpenRouter API 키가 서버에 설정되지 않았습니다. Vercel 프로젝트의 Environment Variables에 OPENROUTER_API_KEY를 추가하고 다시 배포해 주세요."
+    ));
   }
 
   try {
@@ -55,8 +57,8 @@ module.exports = async function handler(request, response) {
     }
     return sendJson(response, 200, createSuccessPayload(receipt, "live"));
   } catch (error) {
-    console.error("영수증 분석 API 요청 실패:", error.message);
-    return sendJson(response, 200, demoPayload());
+    console.error("영수증 분석 API 요청 실패:", error.code || "OPENROUTER_REQUEST_FAILED", error.status || "");
+    return sendJson(response, 200, demoPayload(describeOpenRouterFailure(error)));
   }
 };
 
@@ -198,7 +200,9 @@ async function requestOpenRouter(image, apiKey) {
     });
 
     if (!result.ok) {
-      throw new Error(`OpenRouter returned HTTP ${result.status}`);
+      const error = createError("OPENROUTER_HTTP_ERROR", `OpenRouter returned HTTP ${result.status}`);
+      error.status = result.status;
+      throw error;
     }
     const responseBody = await result.json();
     const content = responseBody.choices?.[0]?.message?.content;
@@ -272,8 +276,9 @@ function createSuccessPayload(rawReceipt, mode) {
 }
 
 /* 서버가 제공하는 데모 영수증을 실제 분석 결과와 구분해 반환합니다. */
-function demoPayload() {
-  return createSuccessPayload({
+function demoPayload(reason) {
+  return {
+    ...createSuccessPayload({
     storeName: "데모 마트",
     purchasedAt: "2026-11-26T10:30:00+09:00",
     paymentMethod: "카드",
@@ -283,7 +288,32 @@ function demoPayload() {
       { name: "식빵", quantity: 1, unitPrice: 3000, totalPrice: 3000 },
       { name: "생수 2L", quantity: 2, unitPrice: 1500, totalPrice: 3000 }
     ]
-  }, "demo");
+    }, "demo"),
+    demoReason: reason
+  };
+}
+
+/* OpenRouter 연결 실패 원인에 맞는 안전한 점검 안내를 제공합니다. */
+function describeOpenRouterFailure(error) {
+  if (error.name === "AbortError") {
+    return "OpenRouter 응답 시간이 초과되어 샘플 결과를 표시합니다. 잠시 후 다시 시도해 주세요.";
+  }
+  if (Number.isInteger(error.status)) {
+    const messages = {
+      400: "OpenRouter가 요청을 거부했습니다. Vercel의 OPENROUTER_MODEL 값과 선택한 모델의 이미지 입력 지원 여부를 확인해 주세요.",
+      401: "OpenRouter 인증에 실패했습니다. Vercel의 OPENROUTER_API_KEY가 올바른지 확인해 주세요.",
+      402: "OpenRouter 크레딧 또는 사용 한도가 부족합니다. OpenRouter 계정의 잔액과 한도를 확인해 주세요.",
+      403: "OpenRouter가 요청을 허용하지 않았습니다. API 키 권한과 모델 접근 권한을 확인해 주세요.",
+      404: "OpenRouter에서 모델을 찾지 못했습니다. OPENROUTER_MODEL의 모델 ID를 확인해 주세요.",
+      429: "OpenRouter 요청 한도에 도달했습니다. 잠시 기다린 뒤 다시 시도해 주세요."
+    };
+    return messages[error.status] ||
+      `OpenRouter가 HTTP ${error.status} 오류를 반환했습니다. Vercel 함수 로그에서 요청 상태를 확인해 주세요.`;
+  }
+  if (error instanceof TypeError) {
+    return "서버에서 OpenRouter에 연결하지 못했습니다. Vercel 함수 로그와 네트워크 상태를 확인해 주세요.";
+  }
+  return "OpenRouter 응답을 처리하지 못했습니다. Vercel 함수 로그에서 모델 응답 형식을 확인해 주세요.";
 }
 
 /* 표시 문자열과 숫자 응답값을 엄격하게 정리합니다. */
