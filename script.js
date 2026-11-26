@@ -395,7 +395,8 @@
         const notice = document.createElement("div");
         notice.className = "demo-notice";
         notice.textContent = `데모 모드: 샘플 분석 결과입니다. 실제 영수증에서 추출한 값이 아닙니다. ${
-          result.payload.demoReason || "저장 전 내용을 직접 확인해 주세요."
+          result.payload.demoReason ||
+          "서버가 실패 원인을 보내지 않았습니다. 최신 script.js와 api/receipt/parse.js가 배포됐는지, Vercel 환경 변수에 OPENROUTER_API_KEY가 설정됐는지 확인해 주세요."
         }`;
         content.append(notice);
       }
