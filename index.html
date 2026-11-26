@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f2">
+  <meta name="description" content="영수증에서 지출 내역을 자동으로 읽고 확인하는 스마트 가계부">
+  <title>영수증 인식 | 스마트 가계부</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js" defer></script>
+</head>
+<body>
+  <!-- 앱 전체의 공통 헤더와 주요 화면 영역을 구성합니다. -->
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="주요 메뉴">
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="스마트 가계부 홈">
+        <span class="brand-mark" aria-hidden="true">₩</span>
+        <span>스마트 가계부</span>
+      </a>
+      <p class="nav-caption">메뉴</p>
+      <nav class="main-nav">
+        <a class="nav-link" href="#dashboard" data-route="dashboard"><span aria-hidden="true">▦</span> 홈 대시보드</a>
+        <a class="nav-link active" href="#upload" data-route="upload" aria-current="page"><span aria-hidden="true">＋</span> 영수증 업로드</a>
+        <a class="nav-link" href="#expenses" data-route="expenses"><span aria-hidden="true">▤</span> 지출 목록</a>
+        <a class="nav-link" href="#analytics" data-route="analytics"><span aria-hidden="true">◷</span> 월별 소비 분석</a>
+        <a class="nav-link" href="#tips" data-route="tips"><span aria-hidden="true">✦</span> 절약 팁</a>
+        <a class="nav-link" href="#settings" data-route="settings"><span aria-hidden="true">⚙</span> 설정</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="note-icon" aria-hidden="true">✳</span>
+        <strong>영수증 한 장으로</strong>
+        <p>복잡한 지출 기록을<br>간편하게 시작해 보세요.</p>
+      </div>
+      <p class="sidebar-foot">스마트하게 기록하고<br>가볍게 소비해요.</p>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="icon-button menu-button" id="menu-button" type="button" aria-label="메뉴 열기" aria-expanded="false">☰</button>
+        <a class="mobile-brand" href="#dashboard" data-route="dashboard"><span class="brand-mark" aria-hidden="true">₩</span> 스마트 가계부</a>
+        <div class="global-search" aria-label="지출 검색">
+          <button class="search-toggle" id="search-toggle" type="button" aria-label="검색창 열기">⌕</button>
+          <input id="global-search" type="search" placeholder="상호명 또는 상품 검색">
+          <kbd>↵</kbd>
+        </div>
+        <div class="topbar-spacer"></div>
+        <span class="topbar-label" id="connection-status">데모 모드</span>
+        <button class="avatar" id="profile-button" type="button" aria-label="로그인">게</button>
+      </header>
+
+      <main class="page-content" id="upload">
+        <div class="page-heading" data-view="upload">
+          <div>
+            <p class="eyebrow">SMART RECEIPT</p>
+            <h1>영수증 업로드</h1>
+            <p class="page-description">영수증 사진을 올리면 지출 내역을 자동으로 정리해 드려요.</p>
+          </div>
+          <div class="privacy-pill"><span aria-hidden="true">▣</span> 안전하게 분석돼요</div>
+        </div>
+
+        <section class="step-card" data-view="upload" aria-label="영수증 등록 단계">
+          <ol class="step-list">
+            <li class="step-item current" data-step="upload"><span class="step-number">1</span><span>사진 업로드</span></li>
+            <li class="step-connector" aria-hidden="true"></li>
+            <li class="step-item" data-step="analyze"><span class="step-number">2</span><span>자동 인식</span></li>
+            <li class="step-connector" aria-hidden="true"></li>
+            <li class="step-item" data-step="review"><span class="step-number">3</span><span>정보 확인</span></li>
+            <li class="step-connector" aria-hidden="true"></li>
+            <li class="step-item" data-step="categorize"><span class="step-number">4</span><span>분류 검토</span></li>
+          </ol>
+        </section>
+
+        <section class="upload-layout" data-view="upload" aria-label="영수증 업로드 및 분석">
+          <div class="upload-main">
+            <section class="panel upload-panel">
+              <div class="section-title-row">
+                <div>
+                  <h2>영수증 사진을 추가해 주세요</h2>
+                  <p>선명하고 전체가 보이도록 촬영하면 더 정확하게 인식해요.</p>
+                </div>
+                <span class="optional-label">최대 5장</span>
+              </div>
+
+              <div class="dropzone" id="dropzone" tabindex="0" role="group" aria-label="영수증 이미지 선택 또는 끌어놓기">
+                <input id="receipt-input" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+                <div class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 48 48" role="img">
+                    <path d="M24 32V9m0 0-8 8m8-8 8 8M10 29v9a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2v-9" />
+                  </svg>
+                </div>
+                <h3>영수증 사진을 여기에 끌어 놓으세요</h3>
+                <p>또는 아래 버튼을 눌러 파일을 선택해 주세요</p>
+                <button class="button button-outline" id="browse-button" type="button">파일 선택하기</button>
+                <span class="file-hint">JPG, PNG, WEBP · 파일당 최대 4MB</span>
+              </div>
+
+              <div class="preview-heading">
+                <h3>업로드한 영수증 <span id="file-count" class="count-badge">0</span></h3>
+                <button class="text-button" id="add-more-button" type="button">＋ 영수증 추가</button>
+              </div>
+              <div class="preview-list" id="preview-list">
+                <div class="empty-preview" id="empty-preview">
+                  <span aria-hidden="true">▧</span>
+                  <p>아직 추가된 영수증이 없어요.</p>
+                </div>
+              </div>
+
+              <div class="upload-actions">
+                <button class="button button-primary" id="analyze-button" type="button" disabled>
+                  영수증 분석하기 <span aria-hidden="true">→</span>
+                </button>
+                <p class="inline-error" id="upload-error" role="alert" hidden></p>
+              </div>
+            </section>
+
+            <section class="panel progress-panel" id="progress-panel" aria-live="polite" hidden>
+              <div class="progress-heading">
+                <div class="spinner" aria-hidden="true"></div>
+                <div>
+                  <h2 id="progress-title">영수증의 상품명과 금액을 읽고 있어요</h2>
+                  <p id="progress-description">잠시만 기다려 주세요.</p>
+                </div>
+              </div>
+              <ol class="progress-steps" id="progress-steps">
+                <li class="progress-step active"><span></span>이미지 확인</li>
+                <li class="progress-step"><span></span>영수증 읽기</li>
+                <li class="progress-step"><span></span>구매 항목 정리</li>
+                <li class="progress-step"><span></span>금액 확인</li>
+              </ol>
+              <div class="progress-track"><span id="progress-bar"></span></div>
+            </section>
+
+            <section class="results-section" id="results-section" aria-label="인식 결과" hidden>
+              <div class="results-heading">
+                <div>
+                  <p class="eyebrow">REVIEW YOUR RECEIPT</p>
+                  <h2>인식 결과와 카테고리 확인</h2>
+                  <p>영수증 정보를 수정한 뒤 카테고리를 자동 제안받고 항목별로 검토해 주세요.</p>
+                </div>
+              </div>
+              <div class="results-list" id="results-list"></div>
+              <div class="review-actions">
+                <p id="review-message" role="status">인식 정보를 확인한 뒤 카테고리 분류를 시작해 주세요.</p>
+                <div class="review-buttons">
+                  <button class="button button-outline" id="categorize-button" type="button" disabled>카테고리 자동 분류 <span aria-hidden="true">✦</span></button>
+                  <button class="button button-primary" id="review-button" type="button" disabled>분류 검토 완료 <span aria-hidden="true">✓</span></button>
+                  <button class="button button-primary" id="save-expenses-button" type="button" hidden>지출 내역 저장</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="upload-aside">
+            <section class="panel guide-panel">
+              <div class="guide-icon" aria-hidden="true">✦</div>
+              <h2>더 정확하게 인식하는 팁</h2>
+              <ul class="guide-list">
+                <li><span>✓</span> 영수증 전체가 사진 안에 들어오게 해주세요.</li>
+                <li><span>✓</span> 글자에 초점을 맞춰 선명하게 촬영해 주세요.</li>
+                <li><span>✓</span> 빛 반사와 그림자가 없는 곳에서 촬영해 주세요.</li>
+              </ul>
+            </section>
+            <section class="notice-card">
+              <span class="notice-icon" aria-hidden="true">i</span>
+              <div>
+                <strong>먼저 확인해 주세요</strong>
+                <p>분석 결과는 자동으로 생성되므로 결제 금액과 상품 내역을 꼭 확인해 주세요. 현재 단계에서는 검토 결과를 데이터베이스에 저장하지 않습니다.</p>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <!-- 대시보드와 관리 화면을 해시 경로로 전환하는 반응형 앱 화면입니다. -->
+        <section class="app-view" data-view="dashboard" hidden>
+          <div class="view-heading">
+            <div><p class="eyebrow">OVERVIEW</p><h1>이번 달 소비 현황</h1><p class="page-description" id="dashboard-month-label">지출 흐름을 한눈에 확인해 보세요.</p></div>
+            <button class="button button-primary" type="button" data-navigate="upload">＋ 영수증 업로드 시작</button>
+          </div>
+          <div class="kpi-grid">
+            <article class="panel kpi-card"><span>이번 달 총지출</span><strong id="kpi-total">-</strong><small id="kpi-total-note">선택한 월 기준</small></article>
+            <article class="panel kpi-card"><span>남은 예산</span><strong id="kpi-remaining">미설정</strong><small id="kpi-budget-note">월 예산을 설정해 보세요</small></article>
+            <article class="panel kpi-card"><span>이번 달 영수증</span><strong id="kpi-count">-</strong><small>건</small></article>
+            <article class="panel kpi-card"><span>가장 많이 쓴 항목</span><strong id="kpi-category">-</strong><small id="kpi-category-note">카테고리별 지출</small></article>
+          </div>
+          <div class="content-grid">
+            <section class="panel content-card"><div class="card-heading"><div><h2>월별 소비 흐름</h2><p>최근 6개월 지출</p></div><a href="#analytics" data-route="analytics" class="text-link">전체 보기 →</a></div><div class="chart-area" id="monthly-chart"></div></section>
+            <section class="panel content-card"><div class="card-heading"><div><h2>주요 지출 항목</h2><p>이번 달 카테고리 비중</p></div><a href="#expenses" data-route="expenses" class="text-link">지출 목록 →</a></div><div class="category-chart" id="dashboard-category-chart"></div><div class="category-legend" id="dashboard-category-legend"></div></section>
+          </div>
+          <section class="panel content-card"><div class="card-heading"><div><h2>최근 지출 내역</h2><p>최근 기록한 지출을 확인해 보세요.</p></div><a href="#expenses" data-route="expenses" class="text-link">전체 내역 →</a></div><div class="table-wrap"><table class="data-table"><thead><tr><th>날짜</th><th>상호명</th><th>카테고리</th><th>금액</th><th></th></tr></thead><tbody id="recent-expenses"></tbody></table></div><div class="empty-state" id="dashboard-empty" hidden>아직 지출 내역이 없어요. 영수증을 등록해 시작해 보세요.</div></section>
+        </section>
+
+        <section class="app-view" data-view="expenses" hidden>
+          <div class="view-heading"><div><p class="eyebrow">TRANSACTIONS</p><h1>지출 목록</h1><p class="page-description">영수증별 지출과 상품 내역을 검색해 보세요.</p></div><button class="button button-primary" type="button" data-navigate="upload">＋ 지출 추가</button></div>
+          <section class="panel content-card"><div class="filter-row"><label>월 <input id="expense-month-filter" type="month"></label><label>카테고리 <select id="expense-category-filter"><option value="">전체 카테고리</option><option>식비</option><option>교통비</option><option>생활용품비</option><option>문화·여가</option><option>의료비</option><option>쇼핑</option><option>주거·통신</option><option>기타</option></select></label><label class="search-filter">검색 <input id="expense-search-filter" type="search" placeholder="상호명 또는 상품명"></label><button class="button button-outline" id="expense-filter-button" type="button">검색</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>날짜</th><th>상호명</th><th>결제 수단</th><th>카테고리</th><th>금액</th><th></th></tr></thead><tbody id="expenses-table-body"></tbody></table></div><div class="empty-state" id="expenses-empty" hidden>조건에 맞는 지출이 없어요.</div></section>
+        </section>
+
+        <section class="app-view" data-view="expense-detail" hidden>
+          <button class="text-button back-button" type="button" data-navigate="expenses">← 지출 목록</button>
+          <div class="view-heading"><div><p class="eyebrow">EXPENSE DETAIL</p><h1 id="detail-title">지출 상세</h1><p class="page-description" id="detail-subtitle"></p></div><button class="button button-primary" id="save-detail-button" type="button">상품 변경 저장</button></div>
+          <div class="detail-grid"><section class="panel content-card"><h2>지출 요약</h2><dl class="detail-summary" id="detail-summary"></dl><div class="receipt-image-box" id="detail-receipt-image">등록된 영수증 이미지가 없습니다.</div></section><section class="panel content-card"><div class="card-heading"><div><h2>구매 상품 내역</h2><p>카테고리와 금액을 수정할 수 있어요.</p></div><button class="button button-outline" id="review-items-button" type="button">검토 필요 항목</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>상품명</th><th>수량</th><th>단가</th><th>금액</th><th>카테고리</th></tr></thead><tbody id="detail-items-body"></tbody></table></div><div class="detail-total" id="detail-total"></div></section></div>
+        </section>
+
+        <section class="app-view" data-view="analytics" hidden>
+          <div class="view-heading"><div><p class="eyebrow">MONTHLY ANALYTICS</p><h1>월별 소비 분석</h1><p class="page-description">월별 소비 흐름과 지출 구성을 살펴보세요.</p></div><label class="month-picker">분석 월 <input id="analytics-month" type="month"></label></div>
+          <div class="kpi-grid analytics-kpis"><article class="panel kpi-card"><span>이번 달 총지출</span><strong id="analytics-total">-</strong></article><article class="panel kpi-card"><span>일평균 지출</span><strong id="analytics-average">-</strong><small id="average-period"></small></article><article class="panel kpi-card"><span>최다 지출 카테고리</span><strong id="analytics-top-category">-</strong></article><article class="panel kpi-card"><span>검토·고액 항목</span><strong id="analytics-review-count">-</strong></article></div>
+          <div class="content-grid"><section class="panel content-card"><div class="card-heading"><div><h2>카테고리별 지출 비중</h2><p>영수증 대표 카테고리 기준으로 중복 없이 계산</p></div></div><div class="category-chart" id="analytics-category-chart"></div><div class="category-legend" id="analytics-category-legend"></div></section><section class="panel content-card"><div class="card-heading"><div><h2>일자별 소비 흐름</h2><p>결제일 기준</p></div></div><div class="daily-chart" id="daily-chart"></div></section></div>
+          <div class="content-grid"><section class="panel content-card"><h2>주요 지출 카테고리</h2><div id="category-breakdown"></div></section><section class="panel content-card"><h2>검토가 필요한 지출 항목</h2><div id="overspending-list"></div></section></div>
+        </section>
+
+        <section class="app-view" data-view="tips" hidden>
+          <div class="view-heading"><div><p class="eyebrow">SMART SAVING</p><h1>맞춤형 절약 팁</h1><p class="page-description">지출 데이터에서 찾은 작은 절약 기회를 확인해 보세요.</p></div></div>
+          <div class="kpi-grid"><article class="panel kpi-card"><span>가장 많이 쓴 카테고리</span><strong id="tips-top-category">-</strong></article><article class="panel kpi-card"><span>지난달 대비 증감</span><strong id="tips-change">-</strong><small id="tips-change-note">같은 기간 기준</small></article><article class="panel kpi-card"><span>절약 가능 추정 금액</span><strong id="tips-saving">-</strong><small>고정 비율 추정치 · 보장 금액 아님</small></article></div>
+          <section class="panel content-card"><div class="card-heading"><div><h2>이번 달 소비를 바꾸는 작은 팁</h2><p>실제 지출 합계를 근거로 제안합니다.</p></div></div><div class="tips-list" id="tips-list"></div></section>
+        </section>
+
+        <section class="app-view" data-view="settings" hidden>
+          <div class="view-heading"><div><p class="eyebrow">PREFERENCES</p><h1>설정</h1><p class="page-description">프로필과 월별 예산을 관리합니다.</p></div></div>
+          <div class="settings-grid"><section class="panel content-card"><h2>계정</h2><p id="account-description">로그인하지 않은 데모 상태입니다.</p><button class="button button-outline" id="settings-auth-button" type="button">로그인</button></section><section class="panel content-card"><h2>월 예산</h2><p>선택한 월의 지출 목표를 설정하세요.</p><form id="budget-form" class="budget-form"><label>기준 월<input type="month" id="budget-month" required></label><label>월 예산 (원)<input type="number" id="budget-amount" min="1" step="1" placeholder="예: 1000000" required></label><button class="button button-primary" type="submit">예산 저장</button></form><p id="budget-message" role="status"></p></section></div>
+        </section>
+
+        <section class="app-view" data-view="login" hidden>
+          <div class="auth-wrap"><section class="panel auth-card"><a class="brand auth-brand" href="#dashboard"><span class="brand-mark" aria-hidden="true">₩</span><span>스마트 가계부</span></a><p class="eyebrow">YOUR ACCOUNT</p><h1 id="auth-title">스마트 가계부 로그인</h1><p class="page-description">영수증으로 자동 기록되는 가계부</p><form id="auth-form"><label>이메일<input type="email" id="auth-email" autocomplete="email" required placeholder="name@example.com"></label><label>비밀번호<input type="password" id="auth-password" autocomplete="current-password" minlength="6" required placeholder="6자 이상 입력"></label><button class="button button-primary auth-submit" id="auth-submit" type="submit">로그인</button><p class="auth-error" id="auth-error" role="alert"></p></form><div class="auth-divider"><span>또는</span></div><button class="button button-outline oauth-button" type="button" data-provider="google">Google로 계속하기</button><button class="button button-outline oauth-button" type="button" data-provider="kakao">카카오로 계속하기</button><p class="auth-switch"><span id="auth-switch-text">처음이신가요?</span> <button class="text-button" id="auth-mode-toggle" type="button">회원가입</button></p><button class="text-button demo-link" type="button" data-navigate="dashboard">로그인 없이 데모 둘러보기</button></section></div>
+        </section>
+      </main>
+      <footer class="page-footer">스마트 가계부 <span>·</span> 영수증 인식 결과를 꼭 확인해 주세요.</footer>
+    </div>
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="메뉴 닫기" tabindex="-1"></button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</body>
+</html>
