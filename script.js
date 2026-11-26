@@ -156,6 +156,13 @@
       error.code = payload?.error?.code || "MODEL_ERROR";
       throw error;
     }
+    // 모드나 데모 사유가 빠진 응답은 분석 완료로 표시하지 않습니다.
+    if (
+      (payload.mode !== "live" && payload.mode !== "demo") ||
+      (payload.mode === "demo" && (typeof payload.demoReason !== "string" || !payload.demoReason.trim()))
+    ) {
+      throw new Error("영수증 분석 API 응답 형식이 올바르지 않습니다. 현재 배포의 /api/receipt/parse 함수 버전을 확인해 주세요.");
+    }
     return payload;
   }
 
@@ -317,6 +324,7 @@
     })) : [];
     return {
       mode: payload.mode === "demo" ? "demo" : "live",
+      demoReason: typeof payload.demoReason === "string" ? payload.demoReason : null,
       receipt: {
         storeName: receipt.storeName ?? "",
         purchasedAt: receipt.purchasedAt ?? "",
@@ -395,8 +403,7 @@
         const notice = document.createElement("div");
         notice.className = "demo-notice";
         notice.textContent = `데모 모드: 샘플 분석 결과입니다. 실제 영수증에서 추출한 값이 아닙니다. ${
-          result.payload.demoReason ||
-          "서버가 실패 원인을 보내지 않았습니다. 최신 script.js와 api/receipt/parse.js가 배포됐는지, Vercel 환경 변수에 OPENROUTER_API_KEY가 설정됐는지 확인해 주세요."
+          result.payload.demoReason
         }`;
         content.append(notice);
       }
