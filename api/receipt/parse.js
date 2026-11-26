@@ -10,6 +10,8 @@ const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
 /* 서버리스 함수의 메서드, 요청 크기 및 이미지 입력을 확인합니다. */
 module.exports = async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store");
+  // 공개 응답에서 배포된 영수증 API의 응답 규격을 확인할 수 있게 합니다.
+  response.setHeader("X-Receipt-Parse-Version", "2");
   response.setHeader("X-Content-Type-Options", "nosniff");
 
   if (request.method !== "POST") {
@@ -174,7 +176,10 @@ async function requestOpenRouter(image, apiKey) {
         "X-Title": "Smart Household Ledger"
       },
       body: JSON.stringify({
-        model,
+        // 기본 무료 모델이 제한되면 이미지 입력을 지원하는 무료 모델을 시도합니다.
+        ...(model === DEFAULT_MODEL
+          ? { models: [model, "google/gemma-4-31b-it:free"] }
+          : { model }),
         temperature: 0.1,
         max_tokens: 1800,
         messages: [
@@ -305,7 +310,7 @@ function describeOpenRouterFailure(error) {
       402: "OpenRouter 크레딧 또는 사용 한도가 부족합니다. OpenRouter 계정의 잔액과 한도를 확인해 주세요.",
       403: "OpenRouter가 요청을 허용하지 않았습니다. API 키 권한과 모델 접근 권한을 확인해 주세요.",
       404: "OpenRouter에서 모델을 찾지 못했습니다. OPENROUTER_MODEL의 모델 ID를 확인해 주세요.",
-      429: "OpenRouter 요청 한도에 도달했습니다. 잠시 기다린 뒤 다시 시도해 주세요."
+      429: "OpenRouter 요청이 제한되었습니다. 잠시 뒤 다시 시도하고, 계속 제한되면 OpenRouter 계정의 무료 사용 한도를 확인해 주세요."
     };
     return messages[error.status] ||
       `OpenRouter가 HTTP ${error.status} 오류를 반환했습니다. Vercel 함수 로그에서 요청 상태를 확인해 주세요.`;
