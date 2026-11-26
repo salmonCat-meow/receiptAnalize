@@ -394,7 +394,9 @@
       if (result.payload.mode === "demo") {
         const notice = document.createElement("div");
         notice.className = "demo-notice";
-        notice.textContent = "데모 모드: 샘플 분석 결과입니다. 실제 영수증에서 추출한 값이 아니므로 저장 전 내용을 직접 확인해 주세요.";
+        notice.textContent = `데모 모드: 샘플 분석 결과입니다. 실제 영수증에서 추출한 값이 아닙니다. ${
+          result.payload.demoReason || "저장 전 내용을 직접 확인해 주세요."
+        }`;
         content.append(notice);
       }
       const validation = getValidation(result.payload);
