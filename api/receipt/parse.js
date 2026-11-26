@@ -11,7 +11,7 @@ const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
 module.exports = async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store");
   // 공개 응답에서 배포된 영수증 API의 응답 규격을 확인할 수 있게 합니다.
-  response.setHeader("X-Receipt-Parse-Version", "2");
+  response.setHeader("X-Receipt-Parse-Version", "3");
   response.setHeader("X-Content-Type-Options", "nosniff");
 
   if (request.method !== "POST") {
@@ -166,7 +166,7 @@ async function requestOpenRouter(image, apiKey) {
   const timeout = setTimeout(() => abortController.abort(), 45000);
 
   try {
-    const result = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const options = {
       method: "POST",
       signal: abortController.signal,
       headers: {
@@ -202,11 +202,29 @@ async function requestOpenRouter(image, apiKey) {
           }
         ]
       })
-    });
+    };
+    const endpoint = "https://openrouter.ai/api/v1/chat/completions";
+    let result = await fetch(endpoint, options);
+
+    // OpenRouter가 짧은 대기 시간을 안내한 경우에만 한 번 더 요청합니다.
+    if (result.status === 429) {
+      const retryDelay = rateLimitDelay(result.headers);
+      if (retryDelay !== null && retryDelay <= 3000) {
+        await result.body?.cancel();
+        await require("node:timers/promises").setTimeout(retryDelay, undefined, { signal: options.signal });
+        result = await fetch(endpoint, options);
+      }
+    }
 
     if (!result.ok) {
       const error = createError("OPENROUTER_HTTP_ERROR", `OpenRouter returned HTTP ${result.status}`);
       error.status = result.status;
+      if (result.status === 429) {
+        // 화면에는 알려진 제한 유형과 대기 시간만 전달합니다.
+        const body = await result.json().catch(() => null);
+        error.limitSource = body?.error?.metadata?.limit_source;
+        error.retryDelay = rateLimitDelay(result.headers);
+      }
       throw error;
     }
     const responseBody = await result.json();
@@ -298,10 +316,35 @@ function demoPayload(reason) {
   };
 }
 
+/* OpenRouter 헤더의 재시도 시간이나 한도 초기화 시각을 밀리초로 변환합니다. */
+function rateLimitDelay(headers) {
+  const retryAfter = headers?.get("Retry-After")?.trim();
+  const reset = headers?.get("X-RateLimit-Reset")?.trim();
+  const now = Date.now();
+  const retryDelay = retryAfter && (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - now);
+  const resetDelay = reset && /^\d+$/.test(reset) ? Number(reset) - now : null;
+  const delays = [retryDelay, resetDelay].filter((delay) => Number.isSafeInteger(delay) && delay >= 0);
+  return delays.length ? Math.max(...delays) : null;
+}
+
 /* OpenRouter 연결 실패 원인에 맞는 안전한 점검 안내를 제공합니다. */
 function describeOpenRouterFailure(error) {
   if (error.name === "AbortError") {
     return "OpenRouter 응답 시간이 초과되어 샘플 결과를 표시합니다. 잠시 후 다시 시도해 주세요.";
+  }
+  if (error.status === 429) {
+    const reasons = {
+      openrouter_free_tier_per_minute: "OpenRouter 계정의 무료 모델 분당 한도에 도달했습니다.",
+      openrouter_free_tier_per_day: "OpenRouter 계정의 무료 모델 일일 한도에 도달했습니다.",
+      upstream_provider_shared_pool: "OpenRouter 모델 제공업체가 일시적으로 요청을 제한하고 있습니다."
+    };
+    const reason = Object.hasOwn(reasons, error.limitSource)
+      ? reasons[error.limitSource]
+      : "OpenRouter가 요청을 제한했습니다. 계정 한도인지 모델 제공업체 제한인지 확인할 정보가 없습니다.";
+    const retry = error.retryDelay === null
+      ? "잠시 뒤 재시도하거나 OpenRouter 계정의 사용량을 확인해 주세요."
+      : `약 ${Math.max(1, Math.ceil(error.retryDelay / 60000))}분 뒤 다시 시도해 주세요.`;
+    return `${reason} ${retry}`;
   }
   if (Number.isInteger(error.status)) {
     const messages = {
@@ -309,8 +352,7 @@ function describeOpenRouterFailure(error) {
       401: "OpenRouter 인증에 실패했습니다. Vercel의 OPENROUTER_API_KEY가 올바른지 확인해 주세요.",
       402: "OpenRouter 크레딧 또는 사용 한도가 부족합니다. OpenRouter 계정의 잔액과 한도를 확인해 주세요.",
       403: "OpenRouter가 요청을 허용하지 않았습니다. API 키 권한과 모델 접근 권한을 확인해 주세요.",
-      404: "OpenRouter에서 모델을 찾지 못했습니다. OPENROUTER_MODEL의 모델 ID를 확인해 주세요.",
-      429: "OpenRouter 요청이 제한되었습니다. 잠시 뒤 다시 시도하고, 계속 제한되면 OpenRouter 계정의 무료 사용 한도를 확인해 주세요."
+      404: "OpenRouter에서 모델을 찾지 못했습니다. OPENROUTER_MODEL의 모델 ID를 확인해 주세요."
     };
     return messages[error.status] ||
       `OpenRouter가 HTTP ${error.status} 오류를 반환했습니다. Vercel 함수 로그에서 요청 상태를 확인해 주세요.`;
